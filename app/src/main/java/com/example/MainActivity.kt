@@ -1,5 +1,9 @@
 package com.example
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.net.Uri
 import androidx.activity.ComponentActivity
@@ -321,13 +325,15 @@ fun ChannelListScreen(viewModel: IptvViewModel) {
             )
         }
     ) { padding ->
-        if (isLoading) {
-            Box(modifier = Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            Row(modifier = Modifier.padding(padding).fillMaxSize()) {
-                // TV-style Side Navigation
+        Column(modifier = Modifier.padding(padding).fillMaxSize()) {
+            ConnectionStatusIndicator()
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // TV-style Side Navigation
                 Column(
                     modifier = Modifier
                         .weight(1.2f)
@@ -436,6 +442,7 @@ fun ChannelListScreen(viewModel: IptvViewModel) {
                     }
                 }
             }
+        }
         }
     }
 }
@@ -623,8 +630,10 @@ fun PlayerScreen(viewModel: IptvViewModel, onBack: () -> Unit) {
             )
         }
     ) { padding ->
-        Row(modifier = Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+        Column(modifier = Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            ConnectionStatusIndicator()
+            Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                Box(modifier = Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
                 AndroidView(
                     factory = {
                         PlayerView(context).apply {
@@ -664,6 +673,83 @@ fun PlayerScreen(viewModel: IptvViewModel, onBack: () -> Unit) {
                         ChannelItem(channel = ch, viewModel = viewModel, onClick = { viewModel.selectChannel(ch) })
                     }
                 }
+            }
+        }
+        }
+    }
+}
+
+@Composable
+fun ConnectionStatusIndicator() {
+    val context = LocalContext.current
+    var isSlowConnection by remember { mutableStateOf(false) }
+    var isOffline by remember { mutableStateOf(false) }
+
+    DisposableEffect(context) {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                val bandwidth = networkCapabilities.linkDownstreamBandwidthKbps
+                isSlowConnection = bandwidth in 1..2500
+                isOffline = false
+            }
+
+            override fun onLost(network: Network) {
+                isOffline = true
+                isSlowConnection = false
+            }
+            
+            override fun onAvailable(network: Network) {
+                isOffline = false
+            }
+        }
+        
+        try {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback)
+            val activeNetwork = connectivityManager.activeNetwork
+            if (activeNetwork != null) {
+                val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
+                if (caps != null) {
+                    val bandwidth = caps.linkDownstreamBandwidthKbps
+                    isSlowConnection = bandwidth in 1..2500
+                }
+            } else {
+                isOffline = true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        onDispose {
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    if (isOffline) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            modifier = Modifier.fillMaxWidth().padding(8.dp)
+        ) {
+            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Close, contentDescription = "Offline", tint = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("No internet connection. Playback may fail.", color = MaterialTheme.colorScheme.error)
+            }
+        }
+    } else if (isSlowConnection) {
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+            modifier = Modifier.fillMaxWidth().padding(8.dp)
+        ) {
+            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Close, contentDescription = "Slow Connection", tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Slow connection detected. Streaming might buffer.", color = MaterialTheme.colorScheme.onTertiaryContainer)
             }
         }
     }
