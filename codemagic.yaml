@@ -16,6 +16,11 @@ workflows:
           if [ ! -f "debug.keystore" ]; then
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
           fi
+      - name: Create dummy release keystore
+        script: |
+          if [ ! -f "my-upload-key.jks" ]; then
+            keytool -genkey -v -keystore my-upload-key.jks -storepass android -alias upload -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Release"
+          fi
       - name: Create dummy google-services.json
         script: |
           if [ ! -f "app/google-services.json" ]; then
@@ -56,7 +61,10 @@ workflows:
       - name: Build Debug APK
         script: ./gradlew assembleDebug
       - name: Build Release APK
-        script: ./gradlew assembleRelease
+        script: |
+          export STORE_PASSWORD=android
+          export KEY_PASSWORD=android
+          ./gradlew assembleRelease
         ignore_failure: true
     artifacts:
       - app/build/outputs/**/*.apk
