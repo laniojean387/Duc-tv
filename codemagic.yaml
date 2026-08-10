@@ -9,6 +9,8 @@ workflows:
       - name: Set up local.properties
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+      - name: Fix Gradle Wrapper Jar
+        script: gradle wrapper
       - name: Make gradlew executable
         script: chmod +x ./gradlew
       - name: Build Debug APK
