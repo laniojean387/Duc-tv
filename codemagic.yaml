@@ -10,7 +10,7 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
       - name: Fix Gradle Wrapper Jar
-        script: gradle wrapper
+        script: gradle wrapper --gradle-version 9.3.1 --distribution-type bin
       - name: Make gradlew executable
         script: chmod +x ./gradlew
       - name: Build Debug APK
