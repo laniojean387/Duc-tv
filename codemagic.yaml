@@ -11,6 +11,46 @@ workflows:
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
       - name: Fix Gradle Wrapper Jar
         script: gradle wrapper --gradle-version 9.3.1 --distribution-type bin
+      - name: Create debug keystore
+        script: |
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "C=US, O=Android, CN=Android Debug"
+          fi
+      - name: Create dummy google-services.json
+        script: |
+          if [ ! -f "app/google-services.json" ]; then
+            cat <<EOF > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "123456789012",
+              "project_id": "dummy-project",
+              "storage_bucket": "dummy-project.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789012:android:0123456789abcdef",
+                  "android_client_info": {
+                    "package_name": "com.aistudio.ductv.abcxyz"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "dummy_api_key"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
       - name: Make gradlew executable
         script: chmod +x ./gradlew
       - name: Build Debug APK
